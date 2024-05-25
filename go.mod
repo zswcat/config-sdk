@@ -1,4 +1,4 @@
-module config-sdk
+module zswcat/configsdk
 
 go 1.19
 
