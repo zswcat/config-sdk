@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"zswcat/configsdk/cache"
 
 	"github.com/guonaihong/gout"
+	"github.com/zswcat/configsdk/cache"
 )
 
 const configApp = "_config"

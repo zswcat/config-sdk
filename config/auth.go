@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/guonaihong/gout"
+	"github.com/zswcat/configsdk/str"
 	"time"
-	"zswcat/configsdk/str"
 )
 
 type OpenApiAuth struct {
