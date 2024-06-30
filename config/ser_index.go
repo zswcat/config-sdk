@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const serApp = "_ser"
+
 type SerIndexClient[T any] struct {
 	authCache   *cache.ExpiredCache[OpenApiAuth] // 权限缓存
 	configCache *cache.ReloadCache[T]            // 配置缓存
@@ -17,6 +19,18 @@ type SerIndexClient[T any] struct {
 func (client *SerIndexClient[T]) Get() *T {
 	c, _ := client.configCache.Get()
 	return c
+}
+
+func NewSerOpenApiClient(conf *ClientConf) (*cache.ExpiredCache[OpenApiAuth], error) {
+	return cache.NewExpiredCache[OpenApiAuth](func() (*OpenApiAuth, int64, error) {
+		openApiAuth, err1 := getOpenApiAuth(conf.Host, serApp, conf.EnvType, conf.AccessID, conf.AccessToken)
+		if err1 != nil {
+			fmt.Println("刷新密钥失败")
+			return nil, 0, err1
+		}
+
+		return openApiAuth, openApiAuth.ExpiredAt - 50, nil
+	})
 }
 
 func NewSerIndexClient[T any](openApiClient *cache.ExpiredCache[OpenApiAuth], conf *ClientConf, ser string, mapperFunc func(index int) T) (*SerIndexClient[T], error) {
