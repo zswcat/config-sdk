@@ -11,9 +11,14 @@ import (
 const serApp = "_ser"
 
 type SerIndexClient[T any] struct {
-	authCache   *cache.ExpiredCache[OpenApiAuth] // 权限缓存
-	configCache *cache.ReloadCache[T]            // 配置缓存
-	indexID     int                              // 服务ID
+	authCache     *cache.ExpiredCache[OpenApiAuth] // 权限缓存
+	configCache   *cache.ReloadCache[T]            // 配置缓存
+	serIndexCache SerIndexCache                    // 实例ID配置
+}
+
+type SerIndexCache struct {
+	IndexID int    `json:"index_id"`
+	Token   string `json:"token"`
 }
 
 func (client *SerIndexClient[T]) Get() *T {
@@ -48,15 +53,15 @@ func NewSerIndexClient[T any](openApiClient *cache.ExpiredCache[OpenApiAuth], co
 			return nil, err1
 		}
 
-		index, err1 := getSerIndex(conf.Host, ser, conf.EnvType, token.JwtToken, client.indexID)
+		serIndexCache, err1 := getSerIndex(conf.Host, ser, conf.EnvType, token.JwtToken, client.serIndexCache)
 		if err1 != nil {
 			fmt.Println("更新serIndex失败: " + err1.Error())
 			return nil, err1
 		}
 
-		client.indexID = index
+		client.serIndexCache = serIndexCache
 
-		t := mapperFunc(client.indexID)
+		t := mapperFunc(serIndexCache.IndexID)
 
 		return &t, nil
 	}, true, 20*time.Second)
@@ -64,19 +69,18 @@ func NewSerIndexClient[T any](openApiClient *cache.ExpiredCache[OpenApiAuth], co
 	return client, err
 }
 
-func getSerIndex(host, ser, envType, token string, indexID int) (int, error) {
+func getSerIndex(host, ser, envType, token string, serIndexCache SerIndexCache) (SerIndexCache, error) {
 	body := map[string]interface{}{
 		"serve_name": ser,
 		"env_type":   envType,
-		"index_id":   indexID,
+		"index_id":   serIndexCache.IndexID,
+		"token":      serIndexCache.Token,
 	}
 
 	result := struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-		Data    struct {
-			IndexID int `json:"index_id"`
-		} `json:"data"`
+		Code    int           `json:"code"`
+		Message string        `json:"message"`
+		Data    SerIndexCache `json:"data"`
 	}{}
 	err := gout.
 		POST(host + "/open_api/v1/ser/get_serve_index").
@@ -89,13 +93,13 @@ func getSerIndex(host, ser, envType, token string, indexID int) (int, error) {
 		Do()
 
 	if err != nil {
-		return 0, err
+		return SerIndexCache{}, err
 	}
 
 	// 判断结果是否正确
 	if result.Code != 0 {
-		return 0, errors.New("get ser_index err:" + result.Message)
+		return SerIndexCache{}, errors.New("get ser_index err:" + result.Message)
 	}
 
-	return result.Data.IndexID, nil
+	return result.Data, nil
 }
